@@ -35,6 +35,10 @@ def test_predict_spam_label_with_mock(monkeypatch, app: Flask) -> None:  # type:
 def test_predict_route_uses_mock_model(monkeypatch, client, app: Flask) -> None:  # type: ignore[override]
     _install_mock_model(monkeypatch)
 
+    # Simulate a logged-in user for the protected /predict route
+    with client.session_transaction() as sess:
+        sess["user_id"] = 1
+
     response = client.post(
         "/predict",
         data={"message": "this is spam content"},

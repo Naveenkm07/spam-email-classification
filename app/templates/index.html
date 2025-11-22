@@ -1,0 +1,14 @@
+{% extends "layout.html" %}
+
+{% block content %}
+  <h1>Email Spam Classifier</h1>
+  <form method="post" action="{{ url_for('main.predict') }}">
+    {{ form.hidden_tag() }}
+    <p>
+      {{ form.message.label }}<br>
+      {{ form.message(rows=6, cols=60) }}
+      {% for error in form.message.errors %}<span class="error">{{ error }}</span>{% endfor %}
+    </p>
+    <p>{{ form.submit() }}</p>
+  </form>
+{% endblock %}

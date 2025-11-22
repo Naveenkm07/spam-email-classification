@@ -1,14 +1,20 @@
 from __future__ import annotations
 
-from flask import Blueprint, flash, redirect, render_template, session, url_for
+from flask import Blueprint, flash, jsonify, redirect, render_template, request, session, url_for
 
 from .extensions import db
 from .forms import LoginForm, PredictForm, RegistrationForm
 from .models import User
-from .spam import predict_spam_label
+from .spam import get_pipeline_and_metadata, predict_spam_label
 
 
 main_bp = Blueprint("main", __name__)
+
+
+def _require_login() -> bool:
+    """Return True if the current session represents a logged-in user."""
+
+    return bool(session.get("user_id"))
 
 
 @main_bp.route("/")
@@ -23,12 +29,18 @@ def about() -> str:
 
 @main_bp.route("/index", methods=["GET"])
 def index() -> str:
+    if not _require_login():
+        return redirect(url_for("main.signin"))
+
     form = PredictForm()
     return render_template("index.html", form=form)
 
 
 @main_bp.route("/predict", methods=["POST"])
 def predict() -> str:
+    if not _require_login():
+        return redirect(url_for("main.signin"))
+
     form = PredictForm()
     if not form.validate_on_submit():
         flash("Please provide a valid message.", "error")
@@ -83,3 +95,40 @@ def logout() -> str:
     session.clear()
     flash("You have been logged out.", "success")
     return redirect(url_for("main.home"))
+
+
+@main_bp.route("/api/predict", methods=["POST"])
+def api_predict():
+    """JSON prediction endpoint.
+
+    Expects a JSON body of the form ``{"text": "..."}`` and returns
+    ``{"prediction": "spam"|"ham", "probability": float, "model_version": str}``.
+    """
+
+    data = request.get_json(silent=True) or {}
+    text = data.get("text")
+
+    if not isinstance(text, str) or not text.strip():
+        return jsonify({"error": "Field 'text' is required and must be a non-empty string."}), 400
+
+    if len(text) > 10_000:
+        return jsonify({"error": "Text too long. Maximum length is 10,000 characters."}), 400
+
+    pipeline, metadata = get_pipeline_and_metadata()
+
+    # Assume labels are encoded as 0 = ham, 1 = spam
+    proba = float(pipeline.predict_proba([text])[0][1])
+    prediction_label = "spam" if proba >= 0.5 else "ham"
+
+    version = metadata.get("version", "unknown")
+
+    return (
+        jsonify(
+            {
+                "prediction": prediction_label,
+                "probability": proba,
+                "model_version": version,
+            },
+        ),
+        200,
+    )

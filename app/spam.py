@@ -1,10 +1,11 @@
 from __future__ import annotations
 
+import json
 import pickle
 import re
 import string
 from pathlib import Path
-from typing import Any, Tuple
+from typing import Any, Dict, Tuple
 
 from flask import current_app
 from nltk.stem import PorterStemmer
@@ -14,6 +15,8 @@ _ps = PorterStemmer()
 
 _MODEL = None
 _VECTORIZER = None
+_PIPELINE = None
+_PIPELINE_METADATA: Dict[str, Any] | None = None
 
 
 def _load_pickle(path: Path) -> Any:
@@ -39,6 +42,33 @@ def get_model_and_vectorizer() -> Tuple[Any, Any]:
         _MODEL = _load_pickle(model_path)
 
     return _MODEL, _VECTORIZER
+
+
+def get_pipeline_and_metadata() -> Tuple[Any, Dict[str, Any]]:
+    """Lazy-load and cache a trained scikit-learn Pipeline and its metadata.
+
+    The pipeline and a companion ``metadata.json`` file are expected to live in
+    the directory configured by ``MODEL_DIR`` (see :mod:`app.config`).  This is
+    used by the JSON ``/api/predict`` endpoint.
+    """
+
+    global _PIPELINE, _PIPELINE_METADATA
+
+    if _PIPELINE is None or _PIPELINE_METADATA is None:
+        base_dir = Path(current_app.config["MODEL_DIR"])
+        model_path = base_dir / "model.pkl"
+        metadata_path = base_dir / "metadata.json"
+
+        _PIPELINE = _load_pickle(model_path)
+
+        metadata: Dict[str, Any] = {}
+        if metadata_path.exists():
+            with metadata_path.open(encoding="utf-8") as meta_file:
+                metadata = json.load(meta_file)
+
+        _PIPELINE_METADATA = metadata
+
+    return _PIPELINE, _PIPELINE_METADATA
 
 
 def transform_text(text: str) -> str:
