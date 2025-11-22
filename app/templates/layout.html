@@ -2,12 +2,34 @@
 <html lang="en">
   <head>
     <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Spam Email Classifier</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
   </head>
   <body>
+    <a href="#main-content" class="sr-only-focusable">Skip to main content</a>
+    <header>
+      <nav class="navbar" aria-label="Main navigation">
+        <a href="{{ url_for('main.home') }}">Spam Classifier</a>
+        <div class="nav-links">
+          <a href="{{ url_for('main.index') }}">Classify</a>
+          <a href="{{ url_for('main.about') }}">About</a>
+          <button
+            id="theme-toggle"
+            class="theme-toggle"
+            type="button"
+            aria-pressed="false"
+            aria-label="Toggle dark mode"
+          >
+            Theme
+          </button>
+        </div>
+      </nav>
+    </header>
+
     {% with messages = get_flashed_messages(with_categories=true) %}
       {% if messages %}
-        <ul id="flash-messages">
+        <ul id="flash-messages" aria-live="polite">
         {% for category, message in messages %}
           <li data-category="{{ category }}">{{ message }}</li>
         {% endfor %}
@@ -15,6 +37,10 @@
       {% endif %}
     {% endwith %}
 
-    {% block content %}{% endblock %}
+    <main id="main-content" tabindex="-1">
+      {% block content %}{% endblock %}
+    </main>
+
+    <script src="{{ url_for('static', filename='index.js') }}" defer></script>
   </body>
 </html>

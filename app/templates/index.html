@@ -2,13 +2,36 @@
 
 {% block content %}
   <h1>Email Spam Classifier</h1>
-  <form method="post" action="{{ url_for('main.predict') }}">
+  <form
+    id="predict-form"
+    method="post"
+    action="{{ url_for('main.predict') }}"
+  >
     {{ form.hidden_tag() }}
     <p>
       {{ form.message.label }}<br>
-      {{ form.message(rows=6, cols=60) }}
-      {% for error in form.message.errors %}<span class="error">{{ error }}</span>{% endfor %}
+      {{ form.message(id="message", rows=6, cols=60, required=true, maxlength=5000) }}
+      {% for error in form.message.errors %}<span class="error" role="alert">{{ error }}</span>{% endfor %}
     </p>
     <p>{{ form.submit() }}</p>
   </form>
+  <section
+    class="realtime-panel"
+    id="realtime-result"
+    aria-live="polite"
+    aria-label="Real-time spam prediction"
+  >
+    <h2>Real-time prediction</h2>
+    <p id="realtime-status" class="realtime-status"></p>
+    <div
+      class="confidence-bar"
+      role="progressbar"
+      aria-valuemin="0"
+      aria-valuemax="100"
+      aria-valuenow="0"
+      aria-label="Spam probability confidence"
+    >
+      <div class="confidence-bar-fill" id="confidence-bar"></div>
+    </div>
+  </section>
 {% endblock %}
