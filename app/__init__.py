@@ -27,4 +27,7 @@ def create_app(config_class: type[Config] | None = None) -> Flask:
         # Ensure models are imported so that SQLAlchemy sees them
         from . import models  # noqa: F401,WPS433
 
+        # Create tables if they do not yet exist (useful for local/dev setups).
+        db.create_all()
+
     return app

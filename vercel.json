@@ -1,0 +1,16 @@
+{
+  "version": 2,
+  "functions": {
+    "api/index.py": {
+      "runtime": "python3.11"
+    }
+  },
+  "env": {
+    "FLASK_ENV": "production",
+    "FLASK_SECRET_KEY": "change-me-in-vercel-settings",
+    "DATABASE_URL": "sqlite:////tmp/spam_classifier.db"
+  },
+  "routes": [
+    { "src": "/(.*)", "dest": "/api/index.py" }
+  ]
+}

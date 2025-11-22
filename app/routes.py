@@ -114,7 +114,22 @@ def api_predict():
     if len(text) > 10_000:
         return jsonify({"error": "Text too long. Maximum length is 10,000 characters."}), 400
 
-    pipeline, metadata = get_pipeline_and_metadata()
+    try:
+        pipeline, metadata = get_pipeline_and_metadata()
+    except FileNotFoundError:
+        return (
+            jsonify(
+                {
+                    "error": "Model is not available yet. Train the model or contact an administrator.",
+                }
+            ),
+            503,
+        )
+    except Exception:
+        return (
+            jsonify({"error": "Model could not be loaded. Please try again later."}),
+            500,
+        )
 
     # Assume labels are encoded as 0 = ham, 1 = spam
     proba = float(pipeline.predict_proba([text])[0][1])

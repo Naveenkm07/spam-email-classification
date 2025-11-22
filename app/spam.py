@@ -24,6 +24,44 @@ def _load_pickle(path: Path) -> Any:
         return pickle.load(handle)
 
 
+def _build_fallback_model_and_vectorizer() -> Tuple[Any, Any]:
+    """Return a very small rule-based model/vectorizer pair.
+
+    This is used as a safe fallback when ``model.pkl`` / ``vectorizer.pkl`` are
+    not available on disk, so that the HTML ``/predict`` route still works in
+    development without requiring pre-trained files.
+    """
+
+    class DummyVectorizer:
+        def transform(self, texts):  # type: ignore[override]
+            # ``predict_spam_label`` passes already-normalised text strings in a
+            # one-element list; keep the contract but just return the texts.
+            return texts
+
+    class DummyModel:
+        def predict(self, vectors):  # type: ignore[override]
+            results = []
+            spam_keywords = (
+                "spam",
+                "free",
+                "winner",
+                "win ",
+                "prize",
+                "offer",
+                "money",
+                "urgent",
+            )
+
+            for text in vectors:
+                lower = str(text).lower()
+                is_spam = any(keyword in lower for keyword in spam_keywords)
+                results.append(1 if is_spam else 0)
+
+            return results
+
+    return DummyModel(), DummyVectorizer()
+
+
 def get_model_and_vectorizer() -> Tuple[Any, Any]:
     """Lazy-load and cache the ML model and vectorizer.
 
@@ -38,8 +76,13 @@ def get_model_and_vectorizer() -> Tuple[Any, Any]:
         model_path = base_dir / "model.pkl"
         vectorizer_path = base_dir / "vectorizer.pkl"
 
-        _VECTORIZER = _load_pickle(vectorizer_path)
-        _MODEL = _load_pickle(model_path)
+        if model_path.exists() and vectorizer_path.exists():
+            _VECTORIZER = _load_pickle(vectorizer_path)
+            _MODEL = _load_pickle(model_path)
+        else:
+            # Fall back to a simple rule-based model when no pickled artifacts
+            # are present. This keeps the app functional out-of-the-box.
+            _MODEL, _VECTORIZER = _build_fallback_model_and_vectorizer()
 
     return _MODEL, _VECTORIZER
 
@@ -59,7 +102,13 @@ def get_pipeline_and_metadata() -> Tuple[Any, Dict[str, Any]]:
         model_path = base_dir / "model.pkl"
         metadata_path = base_dir / "metadata.json"
 
-        _PIPELINE = _load_pickle(model_path)
+        if not model_path.exists():
+            raise FileNotFoundError(f"Model pipeline file not found at {model_path}")
+
+        try:
+            _PIPELINE = _load_pickle(model_path)
+        except Exception as exc:  # pragma: no cover - defensive guard
+            raise RuntimeError("Failed to load model pipeline.") from exc
 
         metadata: Dict[str, Any] = {}
         if metadata_path.exists():
