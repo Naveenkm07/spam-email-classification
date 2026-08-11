@@ -24,67 +24,7 @@ def _load_pickle(path: Path) -> Any:
         return pickle.load(handle)
 
 
-def _build_fallback_model_and_vectorizer() -> Tuple[Any, Any]:
-    """Return a very small rule-based model/vectorizer pair.
-
-    This is used as a safe fallback when ``model.pkl`` / ``vectorizer.pkl`` are
-    not available on disk, so that the HTML ``/predict`` route still works in
-    development without requiring pre-trained files.
-    """
-
-    class DummyVectorizer:
-        def transform(self, texts):  # type: ignore[override]
-            # ``predict_spam_label`` passes already-normalised text strings in a
-            # one-element list; keep the contract but just return the texts.
-            return texts
-
-    class DummyModel:
-        def predict(self, vectors):  # type: ignore[override]
-            results = []
-            spam_keywords = (
-                "spam",
-                "free",
-                "winner",
-                "win ",
-                "prize",
-                "offer",
-                "money",
-                "urgent",
-            )
-
-            for text in vectors:
-                lower = str(text).lower()
-                is_spam = any(keyword in lower for keyword in spam_keywords)
-                results.append(1 if is_spam else 0)
-
-            return results
-
-    return DummyModel(), DummyVectorizer()
-
-
-def get_model_and_vectorizer() -> Tuple[Any, Any]:
-    """Lazy-load and cache the ML model and vectorizer.
-
-    Looks for `model.pkl` and `vectorizer.pkl` in the directory configured by
-    ``MODEL_DIR`` (see :mod:`app.config`).
-    """
-
-    global _MODEL, _VECTORIZER
-
-    if _MODEL is None or _VECTORIZER is None:
-        base_dir = Path(current_app.config["MODEL_DIR"])
-        model_path = base_dir / "model.pkl"
-        vectorizer_path = base_dir / "vectorizer.pkl"
-
-        if model_path.exists() and vectorizer_path.exists():
-            _VECTORIZER = _load_pickle(vectorizer_path)
-            _MODEL = _load_pickle(model_path)
-        else:
-            # Fall back to a simple rule-based model when no pickled artifacts
-            # are present. This keeps the app functional out-of-the-box.
-            _MODEL, _VECTORIZER = _build_fallback_model_and_vectorizer()
-
-    return _MODEL, _VECTORIZER
+# Removed get_model_and_vectorizer and _build_fallback_model_and_vectorizer
 
 
 def get_pipeline_and_metadata() -> Tuple[Any, Dict[str, Any]]:
@@ -134,11 +74,10 @@ def transform_text(text: str) -> str:
     return " ".join(filtered_tokens)
 
 
-def predict_spam_label(text: str) -> str:
-    """Return ``"Spam"`` or ``"Not Spam"`` for the given email *text*."""
+def predict_spam_label(text: str) -> Tuple[str, float]:
+    """Return ``("Spam" / "Not Spam", confidence_probability)`` for the given email *text*."""
 
-    model, vectorizer = get_model_and_vectorizer()
-    transformed = transform_text(text)
-    vector_input = vectorizer.transform([transformed])
-    result = model.predict(vector_input)[0]
-    return "Spam" if int(result) == 1 else "Not Spam"
+    pipeline, metadata = get_pipeline_and_metadata()
+    proba = float(pipeline.predict_proba([text])[0][1])
+    label = "Spam" if proba >= 0.5 else "Not Spam"
+    return label, proba

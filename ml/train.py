@@ -90,7 +90,7 @@ def train() -> None:
         param_grid=param_grid,
         cv=3,
         scoring="f1",
-        n_jobs=-1,
+        n_jobs=1,
         verbose=1,
     )
 

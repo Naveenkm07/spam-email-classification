@@ -54,23 +54,6 @@ def test_load_pickle_roundtrip(tmp_path) -> None:  # type: ignore[override]
     assert loaded["value"] == 1
 
 
-def test_fallback_model_used_when_no_pickles(tmp_path, app: Flask) -> None:  # type: ignore[override]
-    spam_module._MODEL = None
-    spam_module._VECTORIZER = None
-
-    with app.app_context():
-        app.config["MODEL_DIR"] = tmp_path
-
-        model, vectorizer = spam_module.get_model_and_vectorizer()
-        assert hasattr(model, "predict")
-        assert hasattr(vectorizer, "transform")
-
-        label_spam = spam_module.predict_spam_label("You WIN free money now!")
-        label_ham = spam_module.predict_spam_label("Hello friend, how are you?")
-
-    assert label_spam == "Spam"
-    assert label_ham == "Not Spam"
-
 
 def test_get_pipeline_and_metadata_raises_if_missing(tmp_path, app: Flask) -> None:  # type: ignore[override]
     from app.spam import get_pipeline_and_metadata

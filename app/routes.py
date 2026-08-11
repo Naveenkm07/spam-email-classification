@@ -46,8 +46,8 @@ def predict() -> str:
         flash("Please provide a valid message.", "error")
         return render_template("index.html", form=form), 400
 
-    label = predict_spam_label(form.message.data)
-    return render_template("result.html", prediction=label)
+    label, confidence = predict_spam_label(form.message.data)
+    return render_template("result.html", prediction=label, confidence=confidence)
 
 
 @main_bp.route("/signup", methods=["GET", "POST"])

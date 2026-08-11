@@ -6,19 +6,18 @@ from app import spam as spam_module
 
 
 def _install_mock_model(monkeypatch) -> None:
-    class DummyVectorizer:
-        def transform(self, texts):  # type: ignore[override]
-            return texts
+    class DummyPipeline:
+        def predict_proba(self, texts):  # type: ignore[override]
+            text = texts[0]
+            if "spam" in text.lower():
+                return [[0.1, 0.9]]
+            else:
+                return [[0.8, 0.2]]
 
-    class DummyModel:
-        def predict(self, vectors):  # type: ignore[override]
-            text = vectors[0]
-            return [1 if "spam" in text.lower() else 0]
+    def fake_get_pipeline_and_metadata():  # type: ignore[override]
+        return DummyPipeline(), {"version": "mock"}
 
-    def fake_get_model_and_vectorizer():  # type: ignore[override]
-        return DummyModel(), DummyVectorizer()
-
-    monkeypatch.setattr(spam_module, "get_model_and_vectorizer", fake_get_model_and_vectorizer)
+    monkeypatch.setattr(spam_module, "get_pipeline_and_metadata", fake_get_pipeline_and_metadata)
 
 
 def test_index_requires_login(client) -> None:
