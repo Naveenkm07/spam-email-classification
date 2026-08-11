@@ -27,8 +27,5 @@ build/
 
 # Project specific
 reports/
-model/v1.0/
-model/model.pkl
-model/metadata.json
 data/spam_dataset.csv
 start.ps1
