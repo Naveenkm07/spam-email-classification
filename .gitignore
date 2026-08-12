@@ -29,3 +29,6 @@ build/
 reports/
 data/spam_dataset.csv
 start.ps1
+
+.vercel
+.env*

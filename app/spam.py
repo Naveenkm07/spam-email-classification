@@ -1,52 +1,43 @@
 from __future__ import annotations
 
 import json
-import pickle
 import re
 import string
 from pathlib import Path
 from typing import Any, Dict, Tuple
 
+import numpy as np
+import onnxruntime as rt
 from flask import current_app
 from nltk.stem import PorterStemmer
 
 _TOKEN_PATTERN = re.compile(r"\b\w+\b")
 _ps = PorterStemmer()
 
-_MODEL = None
-_VECTORIZER = None
-_PIPELINE = None
+_SESSION = None
 _PIPELINE_METADATA: Dict[str, Any] | None = None
 
 
-def _load_pickle(path: Path) -> Any:
-    with path.open("rb") as handle:
-        return pickle.load(handle)
-
-
-# Removed get_model_and_vectorizer and _build_fallback_model_and_vectorizer
-
-
 def get_pipeline_and_metadata() -> Tuple[Any, Dict[str, Any]]:
-    """Lazy-load and cache a trained scikit-learn Pipeline and its metadata.
+    """Lazy-load and cache a trained ONNX InferenceSession and its metadata.
 
-    The pipeline and a companion ``metadata.json`` file are expected to live in
+    The model and a companion ``metadata.json`` file are expected to live in
     the directory configured by ``MODEL_DIR`` (see :mod:`app.config`).  This is
     used by the JSON ``/api/predict`` endpoint.
     """
 
-    global _PIPELINE, _PIPELINE_METADATA
+    global _SESSION, _PIPELINE_METADATA
 
-    if _PIPELINE is None or _PIPELINE_METADATA is None:
-        base_dir = Path(current_app.config["MODEL_DIR"])
-        model_path = base_dir / "model.pkl"
+    if _SESSION is None or _PIPELINE_METADATA is None:
+        base_dir = Path(current_app.config.get("MODEL_DIR", "model"))
+        model_path = base_dir / "model.onnx"
         metadata_path = base_dir / "metadata.json"
 
         if not model_path.exists():
             raise FileNotFoundError(f"Model pipeline file not found at {model_path}")
 
         try:
-            _PIPELINE = _load_pickle(model_path)
+            _SESSION = rt.InferenceSession(str(model_path), providers=["CPUExecutionProvider"])
         except Exception as exc:  # pragma: no cover - defensive guard
             raise RuntimeError("Failed to load model pipeline.") from exc
 
@@ -57,7 +48,7 @@ def get_pipeline_and_metadata() -> Tuple[Any, Dict[str, Any]]:
 
         _PIPELINE_METADATA = metadata
 
-    return _PIPELINE, _PIPELINE_METADATA
+    return _SESSION, _PIPELINE_METADATA
 
 
 def transform_text(text: str) -> str:
@@ -77,7 +68,24 @@ def transform_text(text: str) -> str:
 def predict_spam_label(text: str) -> Tuple[str, float]:
     """Return ``("Spam" / "Not Spam", confidence_probability)`` for the given email *text*."""
 
-    pipeline, metadata = get_pipeline_and_metadata()
-    proba = float(pipeline.predict_proba([text])[0][1])
+    session, metadata = get_pipeline_and_metadata()
+    
+    # Preprocess text
+    processed_text = transform_text(text)
+    
+    # Prepare inputs for ONNX runtime
+    input_name = session.get_inputs()[0].name
+    label_name = session.get_outputs()[0].name
+    proba_name = session.get_outputs()[1].name
+    
+    # Run inference
+    inputs = {input_name: np.array([[processed_text]], dtype=object)}
+    pred_onx = session.run([label_name, proba_name], inputs)
+    
+    # ONNX probabilities output for sklearn models is a list of dictionaries mapping class -> prob
+    proba_dict = pred_onx[1][0]
+    # Assuming label 1 is Spam, get its probability (default to 0.0 if not found)
+    proba = float(proba_dict.get(1, 0.0))
+    
     label = "Spam" if proba >= 0.5 else "Not Spam"
     return label, proba
