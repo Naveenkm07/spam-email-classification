@@ -8,4 +8,4 @@ python-dotenv==1.0.1
 nltk==3.8.1
 numpy==1.26.4
 email-validator==2.1.0.post1
-onnxruntime==1.17.1
+onnxruntime>=1.19.0
