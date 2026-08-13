@@ -82,10 +82,13 @@ def predict_spam_label(text: str) -> Tuple[str, float]:
     inputs = {input_name: np.array([[processed_text]], dtype=object)}
     pred_onx = session.run([label_name, proba_name], inputs)
     
-    # ONNX probabilities output for sklearn models is a list of dictionaries mapping class -> prob
-    proba_dict = pred_onx[1][0]
-    # Assuming label 1 is Spam, get its probability (default to 0.0 if not found)
-    proba = float(proba_dict.get(1, 0.0))
+    # ONNX probabilities output can be a dictionary or a numpy array depending on zipmap
+    proba_data = pred_onx[1][0]
+    
+    if isinstance(proba_data, dict):
+        proba = float(proba_data.get(1, 0.0))
+    else:
+        proba = float(proba_data[1]) if len(proba_data) > 1 else 0.0
     
     label = "Spam" if proba >= 0.5 else "Not Spam"
     return label, proba
