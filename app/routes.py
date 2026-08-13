@@ -115,7 +115,7 @@ def api_predict():
         return jsonify({"error": "Text too long. Maximum length is 10,000 characters."}), 400
 
     try:
-        pipeline, metadata = get_pipeline_and_metadata()
+        _, metadata = get_pipeline_and_metadata()
     except FileNotFoundError:
         return (
             jsonify(
@@ -131,10 +131,7 @@ def api_predict():
             500,
         )
 
-    # Assume labels are encoded as 0 = ham, 1 = spam
-    proba = float(pipeline.predict_proba([text])[0][1])
-    prediction_label = "spam" if proba >= 0.5 else "ham"
-
+    prediction_label, proba = predict_spam_label(text)
     version = metadata.get("version", "unknown")
 
     return (
