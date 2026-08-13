@@ -32,7 +32,7 @@ class Config:
 
     WTF_CSRF_TIME_LIMIT = None
 
-    MODEL_DIR: Path = Path(os.environ.get("MODEL_DIR", BASE_DIR))
+    MODEL_DIR: Path = Path(os.environ.get("MODEL_DIR", BASE_DIR / "model"))
 
     TESTING: bool = False
 
