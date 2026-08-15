@@ -90,5 +90,5 @@ def predict_spam_label(text: str) -> Tuple[str, float]:
     else:
         proba = float(proba_data[1]) if len(proba_data) > 1 else 0.0
     
-    label = "Spam" if proba >= 0.5 else "Not Spam"
+    label = "Spam" if proba > 0.5 else "Not Spam"
     return label, proba

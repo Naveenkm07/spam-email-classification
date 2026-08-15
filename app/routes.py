@@ -98,7 +98,10 @@ def logout() -> str:
     return redirect(url_for("main.home"))
 
 
+from .extensions import db, csrf
+
 @main_bp.route("/api/predict", methods=["POST"])
+@csrf.exempt
 def api_predict():
     """JSON prediction endpoint.
 

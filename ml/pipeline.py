@@ -33,7 +33,7 @@ def build_pipeline(model_type: str = "logreg", **classifier_kwargs) -> Pipeline:
         classifier = MultinomialNB(**classifier_kwargs)
     else:
         # Default to LogisticRegression with sane defaults for text
-        classifier = LogisticRegression(max_iter=1000, **classifier_kwargs)
+        classifier = LogisticRegression(max_iter=1000, fit_intercept=False, **classifier_kwargs)
 
     pipeline = Pipeline(
         [
